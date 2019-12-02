@@ -1,0 +1,4 @@
+These lines do not contain any foo
+words that could foolsihly be printed
+Grep -function is off, and does actually find the searched word
+Testing this function is not very easy, though it is doable
