@@ -12,7 +12,7 @@ void readFile(char file_name[]);
 int main(int argc, char* argv[]) {
     if (argc <= 1) {
         printf("No arguments given.\n");
-        exit(1);
+        exit(0);
     }
     for (int argnum = 1; argnum < argc; argnum++) {
         readFile(argv[argnum]);
