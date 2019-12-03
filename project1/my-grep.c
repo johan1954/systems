@@ -21,10 +21,6 @@ int main(int argc, char* argv[]) {
             file_open(argv[1], argv[2+x]);
         }
     }
-
-    if (argv != NULL) {
-        free(argv);
-    }
     return 0;
 }
 
@@ -45,6 +41,7 @@ void file_open(char* search, char* filename) {
     }
     if (buffer != NULL) {
         free(buffer);
+        buffer = NULL;
     }
     printf("\n");
 }
