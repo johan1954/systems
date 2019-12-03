@@ -43,11 +43,9 @@ int main(int argc, char* argv[]) {
                 count++;
             }
             /*printf("%d%c", count, new_char);*/
-            object newObject;
-            newObject.character = new_char;
-            newObject.integer = count;
-            fwrite(&newObject, 5 ,sizeof(object), stdout);
-            strncat(saveBuffer, "%d%c", savedSize);
+
+            fwrite(&count, sizeof(count) , 1, stdout);
+            fwrite(&new_char, sizeof(new_char), 1, stdout);
         }
 
         

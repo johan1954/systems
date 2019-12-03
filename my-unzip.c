@@ -11,12 +11,17 @@ typedef struct Object{
 int main(int argc, char* argv[]) {
     char buffer[MAX];
     FILE *file;
+    if (argc <= 1) {
+        printf("my-unzip: file1 [file2 ...]\n");
+        return 1;
+    }
     if ((file = fopen(argv[1], "r")) == NULL) {
         perror("Cannot open file\n");
         exit(1);
     }
-
-    fread(buffer, 1, sizeof(object), file);
+    fread(buffer, sizeof(int), 1, file);
+    printf("%s", buffer);
+    fread(buffer, sizeof(char), 1, file);
     printf("%s", buffer);
     return 0;
 }
