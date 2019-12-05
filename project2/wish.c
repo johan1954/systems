@@ -14,13 +14,17 @@
 
 typedef struct ArgumentList {
     char argument[MAX];
-    argumentList *next;
+    struct ArgumentList *next;
 } argumentList;
 
 argumentList *allocate(argumentList *argsPtr, char *argument);
 argumentList *freeMemory(argumentList *argsPtr);
 argumentList *options(argumentList *argsPtr);
 argumentList *changeDirectory(argumentList *currPtr);
+int getLength(argumentList *argsPtr);
+int getArgLength(argumentList *argsPtr, int isCommandInString);
+void addPath(char *newPath);
+argumentList *runCommand(argumentList *argsPtr);
 
 int main(int argc, char *argv[]) {
     char *command = NULL, *argument;
@@ -36,18 +40,23 @@ int main(int argc, char *argv[]) {
         printf("wish> ");
         commandLength = getline(&command, &size, stdin);
         if (commandLength == 1) {
-            printf("This is continue\n");
+            /* printf("This is continue\n"); */
             continue;
         }
+        printf("%s", command);
         strtok(command, "\n");
         argument = strtok(command, " ");
+        if (command == 0) {
+            continue;
+        }
         while (argument != NULL) {
             argsPtr = allocate(argsPtr, argument);
             argument = strtok(NULL, " ");
         }
         count = getLength(argsPtr);
+        /* Runs as many times as there are different commands separated by "&" */
         for (int i = 0; i < count; i++) {
-            /*TODO: options()*/
+            argsPtr = options(argsPtr);
         }
     }
     return 0;
@@ -55,6 +64,9 @@ int main(int argc, char *argv[]) {
 
 /* This function allocates memory for incoming commands. Makes it easier to execute in order. */
 argumentList *allocate(argumentList *argsPtr, char *argument) {
+    if (argument == 0) {
+        return NULL;
+    }
     argumentList *newArgsPtr, *currArgsPtr = argsPtr;
     if ((newArgsPtr = (argumentList *)malloc(sizeof(argumentList))) == NULL) {
         perror("Allocating memory failed.\n");
@@ -88,9 +100,34 @@ int getLength(argumentList *argsPtr) {
     argumentList *ptr;
     ptr = argsPtr;
     int count = 1;
-    while (ptr != NULL) {
+    while (ptr->next != NULL) {
         argsPtr = ptr->next;
-        if (strcncmp(argsPtr->argument, "&", 1) == 0) {
+        if (strncmp(argsPtr->argument, "&", 1) == 0) {
+            count++;
+        }
+    }
+    return count;
+}
+
+int getArgLength(argumentList *argsPtr, int isCommandInString) {
+    argumentList *ptr;
+    ptr = argsPtr;
+    int count = 1;
+    if (argsPtr == NULL) {
+        return 0;
+    }
+    if (isCommandInString == 1) {
+        isCommandInString = 0;
+        count = 0;
+    }
+
+    while (ptr->next != NULL) {
+        
+        argsPtr = ptr->next;
+        if ((strncmp(argsPtr->argument, "&", 1) == 0) || (strncmp(argsPtr->argument, ">", 1) == 0)) {
+            break;
+        }
+        else {
             count++;
         }
     }
@@ -100,34 +137,47 @@ int getLength(argumentList *argsPtr) {
 argumentList *options(argumentList *argsPtr) {
     argumentList *currPtr = argsPtr;
 
-
-    if (strncmp(argsPtr->argument, "exit", MAX) == 0) {
+    if ((strcmp(argsPtr->argument, "&") == 0) || (strcmp(argsPtr->argument, ">") == 0)) {
+        currPtr = argsPtr->next;
+        free(argsPtr);
+    }
+    if (strncmp(currPtr->argument, "exit", MAX) == 0) {
         exit(0);
     }
 
-    else if (strncmp(argsPtr->argument, "cd", MAX) == 0) {
-        currPtr = argsPtr->next;
-        return changeDirectory(currPtr);
+    else if (strncmp(currPtr->argument, "cd", MAX) == 0) {
+        currPtr = changeDirectory(currPtr);
+        if (currPtr == NULL) {
+            return NULL;
+        }
     }
 
-    else if (strncmp(argsPtr->argument, "path", MAX) == 0) {
+    else if (strncmp(currPtr->argument, "path", MAX) == 0) {
         /* Do this too */
     }
-    else if ((argsPtr = run_command(argsPtr->argument, argsPtr) != NULL)) {
-
-    }
-
     else {
-        printf("wish: %s: command not found\n", argsPtr->argument);
+        currPtr = runCommand(currPtr);
     }
-    return argsPtr;
+    return currPtr;
 }
 
-argumentList *changeDirectory(argumentList *currPtr) {
+argumentList *changeDirectory(argumentList *argsPtr) {
+    argumentList *currPtr = argsPtr->next;
+    free(argsPtr);
+    if (getArgLength(currPtr, 0) < 1) {
+        printf("cd without argument.\n");
+        return NULL;
+    }
+    else if (getArgLength(currPtr, 0) > 1) {
+        printf("cd with too many arguments.\n");
+        return NULL;
+    }
     if (chdir(currPtr->argument) != 0) {
         /*TODO: Error*/
     }
-    currPtr = currPtr->next;
+    else {
+        return NULL;
+    }
     return currPtr;
 }
 
@@ -139,7 +189,8 @@ void redirect(char filename[], char writable[]) {
         perror("Redirection failed.\n");
         return;
     }
-    fprintf(file, writable);
+    fprintf(file, "%s", writable);
+    fclose(file);
 
 
 }
@@ -150,18 +201,26 @@ void addPath(char *newPath) {
         perror("Redirection failed.\n");
         return;
     }
-    fprintf("%s\n", newPath);
+    fprintf(file, "%s\n", newPath);
+    fclose(file);
 }
 
-argumentList *runCommand(argumentList *argsPtr, int numOfArgs) {
+/* Runs a system command */
+argumentList *runCommand(argumentList *argsPtr) {
+    argumentList *currPtr = argsPtr;
     FILE *file;
-    char *path = NULL;
+    char *path = NULL, argList[MAX] = " ";
     size_t size = 0;
+    long command_length;
+    int argsCount, loop;
+    
+    /* Opens the file where shell paths are stored. */
     if ((file = fopen("path", "r")) == NULL) {
         perror("wish: %s: Path could not be read.\n");
-        return;
+        return NULL;
     }
-    while (getline(&path, &size, file)) {
+    while (fgets(&path, &size, file)) == 0) {
+        printf("%lu", size);
         strcat(path, "/");
         strcat(path, argsPtr->argument);
         if (access(path, X_OK) == 0) {
@@ -170,18 +229,33 @@ argumentList *runCommand(argumentList *argsPtr, int numOfArgs) {
         else {
             continue;
         }
-        
     }
+    if (command_length == 0) {
+        printf("wish: %s: command not found\n", argsPtr->argument);
+        return NULL;
+    }
+    argsCount = getArgLength(argsPtr,1);
+    for (loop = 0; loop < argsCount; loop++) {
+        currPtr = currPtr->next;
+        strcat(argList, currPtr->argument);
+        strcat(argList, " ");
+    }
+    fclose(file);
+    printf("%s", path);
     pid_t child_process = fork();
     if (child_process == 0) {
-        if (execv(path, argsPtr) != NULL) {
-                printf();
+        if (execv(path, NULL) == -1) {
+            printf(": %s: error while running system command at path\n", path);
+            perror("\n");
+            return NULL;
         }
     }
     else if (child_process < 0) {
-
+        printf(": %s: error while creating new process\n", path);
+        perror("\n");
+        return NULL;
     }
-    
+    return currPtr->next;
 }
 
 /* eof **********************************************************************************************/
