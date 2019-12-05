@@ -209,9 +209,7 @@ void addPath(char *newPath) {
 argumentList *runCommand(argumentList *argsPtr) {
     argumentList *currPtr = argsPtr;
     FILE *file;
-    char *path = NULL, argList[MAX] = " ";
-    size_t size = 0;
-    long command_length;
+    char path[MAX], argList[MAX] = " ";
     int argsCount, loop;
     
     /* Opens the file where shell paths are stored. */
@@ -219,32 +217,32 @@ argumentList *runCommand(argumentList *argsPtr) {
         perror("wish: %s: Path could not be read.\n");
         return NULL;
     }
-    while (fgets(&path, &size, file)) == 0) {
-        printf("%lu", size);
+    while (fgets(path, MAX-1, file) != NULL) {
         strcat(path, "/");
         strcat(path, argsPtr->argument);
         if (access(path, X_OK) == 0) {
             break;
         }
-        else {
-            continue;
-        }
+        strcpy(path, "");
     }
-    if (command_length == 0) {
+    if (strcmp(path, "")) {
         printf("wish: %s: command not found\n", argsPtr->argument);
         return NULL;
     }
     argsCount = getArgLength(argsPtr,1);
+    argv[MAX];
     for (loop = 0; loop < argsCount; loop++) {
         currPtr = currPtr->next;
         strcat(argList, currPtr->argument);
+        argv[loop] = currPtr->argument;
         strcat(argList, " ");
     }
+
     fclose(file);
     printf("%s", path);
     pid_t child_process = fork();
     if (child_process == 0) {
-        if (execv(path, NULL) == -1) {
+        if (execv(path, argv) == -1) {
             printf(": %s: error while running system command at path\n", path);
             perror("\n");
             return NULL;
