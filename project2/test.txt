@@ -1,0 +1,6 @@
+total 36
+-rwxrwxr-x 1 markusstr markusstr    38 joulu 18 10:24 make.sh
+-rw-rw-r-- 1 markusstr markusstr     5 joulu  5 16:21 path
+-rw-rw-r-- 1 markusstr markusstr     0 joulu 18 13:52 test.txt
+-rwxrwxr-x 1 markusstr markusstr 13808 joulu 18 13:49 wish
+-rw-rw-r-- 1 markusstr markusstr  9517 joulu 18 13:50 wish.c

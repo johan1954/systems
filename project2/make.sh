@@ -1,3 +1,3 @@
 #!/bin/bash
-gcc wish.c -o wish -Wall -Werror
+gcc -Wall wish.c -o wish
 
