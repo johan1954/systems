@@ -7,8 +7,9 @@
 int main(int argc, char *argv[]) {
     int num;
     if (argc > 1) {
-        printf(1, "Argc is over 9000!");
+        printf(1, "Argument given, resetting counter...\n");
         num = getreadcount(0);
+        printf(1, "Reset done!\n");
     }
     else {
         num = getreadcount(1);

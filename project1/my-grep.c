@@ -12,6 +12,7 @@ int main(int argc, char* argv[]) {
         perror("my-grep: searchterm [file ...]\n");
         exit(1);
     }
+    /* Special case, where no files to search have been given */
     else if (argc == 2) {
         read_stdin(argv[1]);
         return 0;
@@ -24,7 +25,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-/* Main functionality in this function */
+/* Main functionality in this program, search from file */
 void file_open(char* search, char* filename) {
     char *buffer = NULL, *ptr;
     size_t size = 0;

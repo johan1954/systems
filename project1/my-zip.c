@@ -2,11 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct Object{
-    int integer;
-    char character;
-} object;
-
 int main(int argc, char* argv[]) {
     char *buffer = NULL, *saveBuffer = NULL;
     FILE *file;
@@ -31,18 +26,18 @@ int main(int argc, char* argv[]) {
             savedSize = len;
         }
         for (i = 0; i < len; i++) {
-            /*Current character in string*/
+            /* Current character in string */
             new_char = buffer[i];
             count = 1;
-            /*While loop for counting how many same characters
-            there are in a row*/
+            /* While loop for counting how many same characters
+            there are in a row */
             while (buffer[i+1] == new_char) {
-                /*Increase character count by one and move to the next
-                character by increasing i by one*/
+                /* Increase character count by one and move to the next
+                character by increasing i by one */
                 i++;
                 count++;
             }
-            /*printf("%d%c", count, new_char);*/
+            /* printf("%d%c", count, new_char); */
 
             fwrite(&count, sizeof(count) , 1, stdout);
             fwrite(&new_char, sizeof(new_char), 1, stdout);

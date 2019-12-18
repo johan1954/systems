@@ -14,6 +14,8 @@ int main(int argc, char* argv[]) {
         printf("No arguments given.\n");
         exit(0);
     }
+
+    /* Read as many files as there are arguments, reading files in order*/
     for (int argnum = 1; argnum < argc; argnum++) {
         readFile(argv[argnum]);
     }

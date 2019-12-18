@@ -2,8 +2,8 @@
 /**** Tomi Enberg 0518456 Markus Strandman 0521605 *************************************************/
 /**** CT30A3370 Käyttöjärjestelmät ja systeemiohjelmointi ******************************************/
 /**** Lähteet: *************************************************************************************/
-/**** https://www.educative.io/edpresso/splitting-a-string-using-strtok-in-c
- ****   https://www.geeksforgeeks.org/wait-system-call-c/ ***********************/
+/**** https://www.educative.io/edpresso/splitting-a-string-using-strtok-in-c ***********************/
+/****   https://www.geeksforgeeks.org/wait-system-call-c/ ******************************************/
 /***************************************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,45 +13,94 @@
 #include <wait.h>
 #define TRUE 1
 #define MAX 100
-#define ARGVL 20
 
 typedef struct ArgumentList {
     char argument[MAX];
     struct ArgumentList *next;
 } argumentList;
 
-typedef struct Argument {
-    char string[MAX];
-} argument;
-
 argumentList *allocate(argumentList *argsPtr, char *argument);
 argumentList *freeMemory(argumentList *argsPtr);
 argumentList *options(argumentList *argsPtr);
 argumentList *changeDirectory(argumentList *currPtr);
-int getLength(argumentList *argsPtr);
+argumentList *runCommand(argumentList *argsPtr);
 int getArgLength(argumentList *argsPtr, int isCommandInString);
 void addPath(char *newPath);
-argumentList *runCommand(argumentList *argsPtr);
+/* Define shell path */
+argumentList *pathList = NULL;
 
 int main(int argc, char *argv[]) {
     char *command = NULL, *argument;
     argumentList *argsPtr = NULL, *currPtr = NULL;
     long commandLength;
     size_t size = 0;
-    int count;
+    FILE *file;
+    /* Initialize shell path */
+    pathList = allocate(pathList, "/bin");
+
+    /* If a file has been given as a command line argument */
     if (argc > 1) {
-        /* Koodaa toiminnallisuus tähän */
+        if ((file = fopen(argv[1], "r")) == NULL) {
+            perror("Cannot open file\n");
+            exit(1);
+        }
+        /* Go through the entire file line by line */
+        while (TRUE) {
+            commandLength = getline(&command, &size, file);
+            if (commandLength <= 1) {
+                break;
+            }
+            strtok(command, "\n");
+            argument = strtok(command, " ");
+            if (command == 0) {
+                continue;
+            }
+            while (argument != NULL) {
+                argsPtr = allocate(argsPtr, argument);
+                argument = strtok(NULL, " ");
+            }
+            currPtr = argsPtr;
+            /* Run as long as there is a following command on the line */
+            while (currPtr != NULL) {
+                currPtr = options(currPtr);
+                if (currPtr == NULL) {
+                    break;
+                }
+                /* If an argument is an ampersand, skip it and move to the next command */
+                if (strcmp(currPtr->argument, "&") == 0) {
+                    currPtr = currPtr->next;
+                    continue;
+                }
+                /* Redirect handled in the execv -child process. */
+                /* If there is an error in the redirect, it will also be handled before reaching this point */
+                else if (strcmp(currPtr->argument, ">") == 0){
+                    break;
+                }
+            }
+            /* When exiting command list, reset the command list for the next line */
+            /* and free up the value that was allocated */
+            if (argsPtr != NULL) {
+                argsPtr = freeMemory(argsPtr);
+            }
+        }
+        /* Before exiting file mode, free memory */
+        if (pathList != NULL) {
+            pathList = freeMemory(pathList);
+        }
+        if (argsPtr != NULL) {
+            argsPtr = freeMemory(argsPtr);
+        }
+        return 0;
     }
     /* The shell interface */
     while (TRUE) {
         printf("wish> ");
-        /* Get the string, arbirary length allowed. */
+        /* Get the string, arbitrary length allowed. */
         commandLength = getline(&command, &size, stdin);
         if (commandLength == 1) {
-            /* printf("This is continue\n"); */
             continue;
         }
-        printf("%s", command);
+        /* Split the given command string into commands and arguments */
         strtok(command, "\n");
         argument = strtok(command, " ");
         if (command == 0) {
@@ -61,13 +110,14 @@ int main(int argc, char *argv[]) {
             argsPtr = allocate(argsPtr, argument);
             argument = strtok(NULL, " ");
         }
-        /* Runs as many times as there are different commands */
         currPtr = argsPtr;
+        /* Run as long as there is a following command in the list */
         while (currPtr != NULL) {
             currPtr = options(currPtr);
             if (currPtr == NULL) {
                 break;
             }
+            /* If an argument is an ampersand, skip it and move to the next command */
             if (strcmp(currPtr->argument, "&") == 0) {
                 currPtr = currPtr->next;
                 continue;
@@ -78,6 +128,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
         }
+        /* When exiting command list, reset the command list for new inputs */
+        /* and free up the value that was allocated */
         if (argsPtr != NULL) {
             argsPtr = freeMemory(argsPtr);
         }
@@ -104,7 +156,6 @@ argumentList *allocate(argumentList *argsPtr, char *argument) {
     return argsPtr;
 }
 
-
 argumentList *freeMemory(argumentList *argsPtr) {
     argumentList *ptr;
     ptr = argsPtr;
@@ -116,19 +167,7 @@ argumentList *freeMemory(argumentList *argsPtr) {
     return NULL;
 }
 
-int getLength(argumentList *argsPtr) {
-    argumentList *ptr;
-    ptr = argsPtr;
-    int count = 1;
-    while (ptr->next != NULL) {
-        argsPtr = ptr->next;
-        if (strncmp(argsPtr->argument, "&", 1) == 0) {
-            count++;
-        }
-    }
-    return count;
-}
-
+/* Get the argument count from the given list */
 int getArgLength(argumentList *argsPtr, int isCommandInString) {
     argumentList *ptr;
     ptr = argsPtr;
@@ -154,14 +193,21 @@ int getArgLength(argumentList *argsPtr, int isCommandInString) {
     return count;
 }
 
+/* Menu for given commands */
 argumentList *options(argumentList *argsPtr) {
     argumentList *currPtr = argsPtr;
-    printf("Options subroutine reached!\n");
 
     if ((strcmp(argsPtr->argument, "&") == 0) || (strcmp(argsPtr->argument, ">") == 0)) {
         currPtr = argsPtr->next;
     }
     if (strncmp(currPtr->argument, "exit", MAX) == 0) {
+        /* Before exiting, free the allocated memory from both dynamic data-structures */
+        if (pathList != NULL) {
+            pathList = freeMemory(pathList);
+        }
+        if (argsPtr != NULL) {
+            argsPtr = freeMemory(argsPtr);
+        }
         exit(0);
     }
 
@@ -173,7 +219,13 @@ argumentList *options(argumentList *argsPtr) {
     }
 
     else if (strncmp(currPtr->argument, "path", MAX) == 0) {
-        /* Do this too */
+        pathList = freeMemory(pathList);
+        currPtr = currPtr->next;
+        while (currPtr != NULL) {
+            pathList = allocate(pathList, currPtr->argument);
+            currPtr = currPtr->next;
+        }
+        return NULL;
     }
     else {
         currPtr = runCommand(currPtr);
@@ -183,7 +235,6 @@ argumentList *options(argumentList *argsPtr) {
 
 argumentList *changeDirectory(argumentList *argsPtr) {
     argumentList *currPtr = argsPtr->next;
-    free(argsPtr);
     if (getArgLength(currPtr, 0) < 1) {
         printf("cd without argument.\n");
         return NULL;
@@ -193,7 +244,8 @@ argumentList *changeDirectory(argumentList *argsPtr) {
         return NULL;
     }
     if (chdir(currPtr->argument) != 0) {
-        /*TODO: Error*/
+        printf("Permission to open the directory is denied\n");
+        return NULL;
     }
     else {
         return NULL;
@@ -201,58 +253,27 @@ argumentList *changeDirectory(argumentList *argsPtr) {
     return currPtr;
 }
 
-
-
-void redirect(char filename[], char writable[]) {
-    FILE *file;
-    if ((file = fopen(filename, "w")) == NULL) {
-        perror("Redirection failed.\n");
-        return;
-    }
-    fprintf(file, "%s", writable);
-    fclose(file);
-
-
-}
-
-void addPath(char *newPath) {
-    FILE *file;
-    if ((file = fopen("path", "a")) == NULL) {
-        perror("Redirection failed.\n");
-        return;
-    }
-    fprintf(file, "%s\n", newPath);
-    fclose(file);
-}
-
 /* Runs a system command */
 argumentList *runCommand(argumentList *argsPtr) {
+    argumentList *pathPtr = pathList;
     argumentList *currPtr = argsPtr;
     FILE *file;
-    char path[MAX], tempCommand[MAX] = "", filename[MAX] = "";
-    char *argv[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    char filename[MAX] = "", path[MAX] = "";
+    /* Define an argument vector. Static, not very safe */
+    char *argv[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
     int loop = 1, redirectInt = 0;
-    
-    /* Opens the file where shell paths are stored. */
-    if ((file = fopen("path", "r")) == NULL) {
-        perror("wish: %s: Path could not be read.\n");
-        return NULL;
-    }
 
-    while (fgets(path, MAX-1, file) != NULL) {
-        strtok(path, "\n");
+    /* Check the access path, and command availability */
+    while (pathPtr != NULL) {
+        strcpy(path, pathPtr->argument);
         strcat(path, "/");
-        strcpy(tempCommand, argsPtr->argument);
-        strcat(path, tempCommand);
-        printf("%s", path);
+        strcat(path, argsPtr->argument);
         if (access(path, X_OK) == 0) {
-            printf("Access ok!\n");
             break;
         }
+        pathPtr = pathPtr->next;
         strcpy(path, "");
     }
-    fclose(file);
-
     if (strcmp(path, "") == 0) {
         printf("wish: %s: command not found\n", argsPtr->argument);
         return NULL;
@@ -268,7 +289,7 @@ argumentList *runCommand(argumentList *argsPtr) {
             if (strcmp(filename, "") == 0) {
                 printf("wish: execv: error while defining filename");
                 return currPtr;
-            }            
+            }
             redirectInt = 1;
             break;
         }
@@ -277,7 +298,7 @@ argumentList *runCommand(argumentList *argsPtr) {
         currPtr = currPtr->next;
     }
  
-    //printf("%s", path);
+    /* Fork a child process */
     pid_t child_process = fork();
 
     if (child_process < 0) {
@@ -287,21 +308,18 @@ argumentList *runCommand(argumentList *argsPtr) {
     }
     else if (child_process != 0) {
         /* Parent process */
-        printf("Waiting child\n");
         wait(NULL);
-        printf("Waiting over\n");
     }
     else {
         /* Child process, here we execute the execv */
-        /* ARGVL is defined in the scope, change if necessary */
-        //printf("Let's execute!\n");
+        /* redirectInt tells the child process, if a stdout is to be redirected in to a file  */
         if (redirectInt == 1) {
             if ((file = freopen(filename, "w", stdout)) == NULL) {
                 perror("wish: execv: Cannot write to file");
                 exit(-1);
             }
         }
-        
+        /* Error handling, if returns, execv has failed */
         if (execv(path, argv) == -1) {
             if (redirectInt == 1) {
                 fclose(file);
@@ -310,10 +328,19 @@ argumentList *runCommand(argumentList *argsPtr) {
             exit(-1);
         }
         if (redirectInt == 1) {
-                fclose(file);
+            fclose(file);
         }
     }
     return currPtr;
 }
 
+/* Print linked list, debugging purposes */
+// void printLinkedList(argumentList *argsPtr) {
+//     argumentList *currPtr = argsPtr;    
+//     while (currPtr != NULL) {
+//         printf("In the zone!\n");
+//         printf("%s\n", currPtr->argument);
+//         currPtr = currPtr->next;
+//     }
+// }
 /* eof **********************************************************************************************/
